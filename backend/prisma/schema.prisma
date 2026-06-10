@@ -1,0 +1,383 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+  PROFESSIONAL
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum TaxCondition {
+  CONSUMIDOR_FINAL
+  MONOTRIBUTO
+  RESPONSABLE_INSCRIPTO
+  EXENTO
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  PAID
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum BookingType {
+  ONE_TIME
+  RECURRENT
+  INTERNAL_USE
+}
+
+enum RecurringRuleStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+
+enum AvailabilityBlockSource {
+  MANUAL
+  GOOGLE_CALENDAR
+  MAINTENANCE
+  SYSTEM
+}
+
+enum LeadSource {
+  WEB
+  WHATSAPP
+  GOOGLE_ADS
+  INSTAGRAM
+  REFERRAL
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  CONVERTED
+  LOST
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  MERCADO_PAGO
+  CARD
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REFUNDED
+  CANCELLED
+}
+
+enum PricingModuleType {
+  SINGLE
+  CONTINUOUS_BLOCK
+  WEEKLY_PACK
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  passwordHash         String?
+  firstName           String?
+  lastName            String?
+  phone               String?
+  role                UserRole             @default(PROFESSIONAL)
+  status              UserStatus           @default(ACTIVE)
+
+  professionalProfile ProfessionalProfile?
+  bookings            Booking[]            @relation("BookingUser")
+  payments            Payment[]
+  auditLogs           AuditLog[]
+
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model ProfessionalProfile {
+  id              String                 @id @default(cuid())
+  userId          String                 @unique
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  displayName     String?
+  profession      String?
+  documentType    String?
+  documentNumber  String?
+  taxCondition    TaxCondition?
+  billingEmail    String?
+  notes           String?
+
+  bookings        Booking[]
+  recurringRules  RecurringBookingRule[]
+
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+}
+
+model Space {
+  id                    String                @id @default(cuid())
+  name                  String
+  slug                  String                @unique
+  description           String?
+  capacity              Int?
+  floor                 String?
+  address               String?
+  isActive              Boolean               @default(true)
+
+  baseHourlyPrice       Decimal               @db.Decimal(10, 2)
+  recurrentHourlyPrice  Decimal?              @db.Decimal(10, 2)
+
+  amenities             SpaceAmenity[]
+  images                SpaceImage[]
+  availabilityRules     AvailabilityRule[]
+  availabilityBlocks    AvailabilityBlock[]
+  bookings              Booking[]
+  recurringRules        RecurringBookingRule[]
+  leads                 Lead[]
+
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+}
+
+model SpaceAmenity {
+  id        String   @id @default(cuid())
+  spaceId   String
+  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  name      String
+  icon      String?
+  position  Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([spaceId])
+}
+
+model SpaceImage {
+  id        String   @id @default(cuid())
+  spaceId   String
+  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  position  Int      @default(0)
+  isCover   Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([spaceId])
+}
+
+model AvailabilityRule {
+  id        String    @id @default(cuid())
+  spaceId   String
+  space     Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  dayOfWeek DayOfWeek
+  startTime String
+  endTime   String
+  isActive  Boolean   @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([spaceId, dayOfWeek])
+}
+
+model AvailabilityBlock {
+  id        String                  @id @default(cuid())
+  spaceId   String
+  space     Space                   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  startAt   DateTime
+  endAt     DateTime
+  reason    String?
+  source    AvailabilityBlockSource @default(MANUAL)
+
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+
+  @@index([spaceId, startAt, endAt])
+}
+
+model Booking {
+  id                    String               @id @default(cuid())
+
+  spaceId               String
+  space                 Space                @relation(fields: [spaceId], references: [id])
+
+  userId                String?
+  user                  User?                @relation("BookingUser", fields: [userId], references: [id])
+
+  professionalProfileId String?
+  professionalProfile   ProfessionalProfile? @relation(fields: [professionalProfileId], references: [id])
+
+  recurringRuleId       String?
+  recurringRule         RecurringBookingRule? @relation(fields: [recurringRuleId], references: [id])
+
+  pricingModuleId       String?
+  pricingModule         PricingModule?       @relation(fields: [pricingModuleId], references: [id])
+
+  startAt               DateTime
+  endAt                 DateTime
+  status                BookingStatus        @default(PENDING)
+  bookingType           BookingType          @default(ONE_TIME)
+
+  pricePerHour          Decimal              @db.Decimal(10, 2)
+  totalPrice            Decimal              @db.Decimal(10, 2)
+  notes                 String?
+
+  payments              Payment[]
+
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  cancelledAt           DateTime?
+
+  @@index([spaceId, startAt, endAt])
+  @@index([userId])
+  @@index([professionalProfileId])
+  @@index([pricingModuleId])
+  @@index([status])
+}
+
+model RecurringBookingRule {
+  id                    String              @id @default(cuid())
+  professionalProfileId String
+  professionalProfile   ProfessionalProfile @relation(fields: [professionalProfileId], references: [id])
+
+  spaceId               String
+  space                 Space               @relation(fields: [spaceId], references: [id])
+
+  dayOfWeek             DayOfWeek
+  startTime             String
+  endTime               String
+  startsOn              DateTime
+  endsOn                DateTime?
+  status                RecurringRuleStatus  @default(ACTIVE)
+  pricePerHour          Decimal             @db.Decimal(10, 2)
+  notes                 String?
+
+  bookings              Booking[]
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([spaceId, dayOfWeek])
+  @@index([professionalProfileId])
+}
+
+model Lead {
+  id             String     @id @default(cuid())
+  name           String?
+  email          String?
+  phone          String?
+  message        String?
+  source         LeadSource @default(WEB)
+  status         LeadStatus @default(NEW)
+
+  desiredSpaceId String?
+  desiredSpace   Space?     @relation(fields: [desiredSpaceId], references: [id])
+  desiredDate    DateTime?
+  desiredTime    String?
+
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([status])
+  @@index([source])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+
+  bookingId         String
+  booking           Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  userId            String?
+  user              User?         @relation(fields: [userId], references: [id])
+
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String        @default("ARS")
+  method            PaymentMethod
+  status            PaymentStatus @default(PENDING)
+
+  provider          String?
+  providerPaymentId String?
+  receiptUrl        String?
+  paidAt            DateTime?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([bookingId])
+  @@index([status])
+}
+
+
+model PricingModule {
+  id              String            @id @default(cuid())
+  name            String
+  slug            String            @unique
+  description     String?
+  moduleType      PricingModuleType @default(CONTINUOUS_BLOCK)
+
+  durationHours   Int?
+  weeklyHours     Int?
+  pricePerHour    Decimal           @db.Decimal(10, 2)
+  totalPrice      Decimal           @db.Decimal(10, 2)
+
+  isActive        Boolean           @default(true)
+  sortOrder       Int               @default(0)
+
+  bookings        Booking[]
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+
+  action     String
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  metadata   Json?
+
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([action])
+}
