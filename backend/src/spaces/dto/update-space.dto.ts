@@ -1,9 +1,9 @@
-import { IsArray, IsBoolean, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
-export class CreateSpaceDto {
+export class UpdateSpaceDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  name!: string;
+  name?: string;
 
   @IsOptional()
   @IsString()
@@ -26,9 +26,10 @@ export class CreateSpaceDto {
   @IsString()
   address?: string | null;
 
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  baseHourlyPrice!: number;
+  baseHourlyPrice?: number;
 
   @IsOptional()
   @IsNumber()

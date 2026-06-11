@@ -2,26 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { BookingStatus, DayOfWeek } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
-const BLOCKING_BOOKING_STATUSES: BookingStatus[] = [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.PAID];
-
-type AvailabilitySlotStatus = 'AVAILABLE' | 'BOOKED' | 'BLOCKED' | 'PAST';
-
-type AvailabilitySlotDto = {
-  startAt: string;
-  endAt: string;
-  label: string;
-  status: AvailabilitySlotStatus;
-  bookingId?: string;
-  bookingStatus?: BookingStatus;
-  blockReason?: string | null;
-};
-
-type CalendarDayDto = {
-  date: string;
-  dayOfWeek: DayOfWeek;
-  isClosed: boolean;
-  slots: AvailabilitySlotDto[];
-};
+const BLOCKING_BOOKING_STATUSES = [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.PAID];
 
 const jsDayToPrismaDay: Record<number, DayOfWeek> = {
   0: DayOfWeek.SUNDAY,
@@ -57,6 +38,24 @@ function addHours(date: Date, hours: number) {
 function overlaps(startA: Date, endA: Date, startB: Date, endB: Date) {
   return startA < endB && endA > startB;
 }
+
+
+type AvailabilitySlotDto = {
+  startAt: string;
+  endAt: string;
+  label: string;
+  status: 'AVAILABLE' | 'BOOKED' | 'BLOCKED' | 'PAST';
+  bookingId?: string;
+  bookingStatus?: BookingStatus;
+  blockReason?: string | null;
+};
+
+type CalendarDayDto = {
+  date: string;
+  dayOfWeek: DayOfWeek;
+  isClosed: boolean;
+  slots: AvailabilitySlotDto[];
+};
 
 @Injectable()
 export class AvailabilityService {
@@ -145,13 +144,12 @@ export class AvailabilityService {
             const booking = space.bookings.find((item) => overlaps(slotStart, slotEnd, item.startAt, item.endAt));
             const block = space.availabilityBlocks.find((item) => overlaps(slotStart, slotEnd, item.startAt, item.endAt));
             const isPast = slotStart < new Date();
-            const status: AvailabilitySlotStatus = isPast ? 'PAST' : booking ? 'BOOKED' : block ? 'BLOCKED' : 'AVAILABLE';
 
             daySlots.push({
               startAt: slotStart.toISOString(),
               endAt: slotEnd.toISOString(),
               label: `${pad(slotStart.getHours())}:00`,
-              status,
+              status: isPast ? 'PAST' : booking ? 'BOOKED' : block ? 'BLOCKED' : 'AVAILABLE',
               bookingId: booking?.id,
               bookingStatus: booking?.status,
               blockReason: block?.reason,

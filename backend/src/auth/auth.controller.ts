@@ -1,23 +1,24 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { Body, Controller, Get, Headers, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';
+import { SignUpDto } from './dto/signup.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('dev-login')
-  devLogin(@Body() body: { role?: UserRole }) {
-    return this.authService.devLogin(body.role || UserRole.PROFESSIONAL);
+  @Post('signup')
+  signUp(@Body() body: SignUpDto) {
+    return this.authService.signUp(body);
   }
 
-  @Get('google')
-  google() {
-    return this.authService.googlePlaceholder();
+  @Post('login')
+  login(@Body() body: LoginDto) {
+    return this.authService.login(body);
   }
 
-  @Get('google/callback')
-  googleCallback() {
-    return this.authService.googlePlaceholder();
+  @Get('me')
+  me(@Headers('authorization') authorization?: string) {
+    return this.authService.me(authorization);
   }
 }

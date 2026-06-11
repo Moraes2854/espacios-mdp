@@ -6,6 +6,44 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
+
+  async summary() {
+    const activeBookingStatuses: BookingStatus[] = [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.PAID];
+
+    const [activeSpaces, totalUsers, newLeads, activeBookings, approvedRevenue, recentBookings, recentLeads] = await Promise.all([
+      this.prisma.space.count({ where: { isActive: true } }),
+      this.prisma.user.count(),
+      this.prisma.lead.count({ where: { status: LeadStatus.NEW } }),
+      this.prisma.booking.count({ where: { status: { in: activeBookingStatuses } } }),
+      this.prisma.payment.aggregate({
+        where: { status: PaymentStatus.APPROVED },
+        _sum: { amount: true },
+      }),
+      this.prisma.booking.findMany({
+        include: { space: true, user: true, professionalProfile: true, payments: true, pricingModule: true },
+        orderBy: { startAt: 'desc' },
+        take: 4,
+      }),
+      this.prisma.lead.findMany({
+        include: { desiredSpace: true },
+        orderBy: { createdAt: 'desc' },
+        take: 4,
+      }),
+    ]);
+
+    return {
+      metrics: {
+        activeSpaces,
+        totalUsers,
+        newLeads,
+        activeBookings,
+        approvedRevenue: Number(approvedRevenue._sum.amount || 0),
+      },
+      recentBookings,
+      recentLeads,
+    };
+  }
+
   async dashboard() {
     const [spaces, users, leads, bookings, payments, auditLogs, recurringRules, availabilityBlocks, availabilityRules, pricingModules] = await Promise.all([
       this.prisma.space.findMany({ include: { amenities: true, images: true, availabilityRules: true, availabilityBlocks: true, recurringRules: true } }),
@@ -17,7 +55,7 @@ export class AdminService {
       this.prisma.recurringBookingRule.findMany({ include: { space: true, professionalProfile: { include: { user: true } } }, orderBy: { createdAt: 'desc' }, take: 30 }),
       this.prisma.availabilityBlock.findMany({ include: { space: true }, orderBy: { startAt: 'asc' }, take: 30 }),
       this.prisma.availabilityRule.findMany({ include: { space: true }, orderBy: [{ spaceId: 'asc' }, { dayOfWeek: 'asc' }] }),
-      this.prisma.pricingModule.findMany({ orderBy: [{ sortOrder: 'asc' }, { durationHours: 'asc' }] }),
+      this.prisma.pricingModule.findMany({ include: { space: true }, orderBy: [{ spaceId: 'asc' }, { sortOrder: 'asc' }, { durationHours: 'asc' }] }),
     ]);
 
     const approvedPayments = payments.filter((payment) => payment.status === PaymentStatus.APPROVED);

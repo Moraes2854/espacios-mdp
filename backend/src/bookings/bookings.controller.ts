@@ -15,4 +15,9 @@ export class BookingsController {
   create(@Body() body: any) {
     return this.bookingsService.create(body);
   }
+
+  @Post('weekly-pack')
+  createWeeklyPack(@Body() body: any) {
+    return this.bookingsService.createWeeklyPack(body);
+  }
 }

@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { CreateSpaceDto } from './dto/create-space.dto';
+import { UpdateSpaceDto } from './dto/update-space.dto';
 import { SpacesService } from './spaces.service';
 
 @Controller('spaces')
@@ -6,17 +8,32 @@ export class SpacesController {
   constructor(private readonly spacesService: SpacesService) {}
 
   @Get()
-  findAll() {
-    return this.spacesService.findAll();
+  findAll(@Query('includeInactive') includeInactive?: string) {
+    return this.spacesService.findAll({ includeInactive: includeInactive === 'true' });
   }
 
-  @Get(':slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.spacesService.findBySlug(slug);
+  @Get(':id')
+  findByIdOrSlug(@Param('id') id: string) {
+    return this.spacesService.findByIdOrSlug(id);
   }
 
   @Post()
-  create(@Body() body: any) {
-    return this.spacesService.create(body);
+  create(@Body() data: CreateSpaceDto) {
+    return this.spacesService.create(data);
+  }
+
+  @Patch(':id/activation')
+  setActive(@Param('id') id: string, @Body('isActive') isActive: boolean) {
+    return this.spacesService.setActive(id, Boolean(isActive));
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() data: UpdateSpaceDto) {
+    return this.spacesService.update(id, data);
+  }
+
+  @Delete(':id')
+  deactivate(@Param('id') id: string) {
+    return this.spacesService.deactivate(id);
   }
 }

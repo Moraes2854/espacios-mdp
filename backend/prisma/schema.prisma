@@ -159,6 +159,7 @@ model Space {
   images                SpaceImage[]
   availabilityRules     AvailabilityRule[]
   availabilityBlocks    AvailabilityBlock[]
+  pricingModules        PricingModule[]
   bookings              Booking[]
   recurringRules        RecurringBookingRule[]
   leads                 Lead[]
@@ -167,18 +168,46 @@ model Space {
   updatedAt             DateTime              @updatedAt
 }
 
+model Amenity {
+  id          String         @id @default(cuid())
+  name        String
+  slug        String         @unique
+  icon        String?
+  description String?
+  category    String?
+  isActive    Boolean        @default(true)
+  sortOrder   Int            @default(0)
+
+  spaces      SpaceAmenity[]
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
 model SpaceAmenity {
-  id        String   @id @default(cuid())
-  spaceId   String
-  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  name      String
-  icon      String?
-  position  Int      @default(0)
+  id            String    @id @default(cuid())
+  spaceId       String
+  space         Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  amenityId     String?
+  amenity       Amenity?  @relation(fields: [amenityId], references: [id], onDelete: SetNull)
 
+  // Legacy fields kept nullable to allow safe migration from previous per-space amenities.
+  name          String?
+  icon          String?
+
+  note          String?
+  isHighlighted Boolean   @default(false)
+  position      Int       @default(0)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([spaceId, amenityId])
   @@index([spaceId])
+  @@index([amenityId])
 }
 
 model SpaceImage {
@@ -342,8 +371,11 @@ model Payment {
 
 model PricingModule {
   id              String            @id @default(cuid())
+  spaceId         String?
+  space           Space?            @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
   name            String
-  slug            String            @unique
+  slug            String
   description     String?
   moduleType      PricingModuleType @default(CONTINUOUS_BLOCK)
 
@@ -360,6 +392,8 @@ model PricingModule {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
+  @@unique([spaceId, slug])
+  @@index([spaceId])
   @@index([isActive, sortOrder])
 }
 

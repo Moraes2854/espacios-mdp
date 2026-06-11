@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ProfessionalProfilesModule } from './professional-profiles/professional-profiles.module';
 import { SpacesModule } from './spaces/spaces.module';
+import { AmenitiesModule } from './amenities/amenities.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { LeadsModule } from './leads/leads.module';
@@ -26,6 +27,7 @@ import { PricingModulesModule } from './pricing-modules/pricing-modules.module';
     UsersModule,
     ProfessionalProfilesModule,
     SpacesModule,
+    AmenitiesModule,
     AvailabilityModule,
     BookingsModule,
     LeadsModule,

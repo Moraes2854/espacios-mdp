@@ -5,6 +5,11 @@ import { AdminService } from './admin.service';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  @Get('summary')
+  summary() {
+    return this.adminService.summary();
+  }
+
   @Get('dashboard')
   dashboard() {
     return this.adminService.dashboard();
